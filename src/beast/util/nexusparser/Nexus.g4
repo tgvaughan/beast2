@@ -20,14 +20,15 @@ characters_block: BEGIN CHARACTERS ';' command* END ';' ;
 
 data_block: BEGIN DATA ';' command* END ';' ;
 
-other_block: BEGIN WORD ';' command* END ';' ;
+other_block: BEGIN STRING ';' command* END ';' ;
 
-command: WORD WORD* ';' ;
+command: word ((word '=' word ','?) | word)* ';' ;
+
+word : keyword | STRING ;
+keyword: BEGIN | END | TAXA | ASSUMPTIONS | CHARACTERS | DATA ;
+
 
 // Lexer
-
-
-// Keywords
 
 NEXUS_START: '#' N E X U S ;
 BEGIN: B E G I N;
@@ -39,10 +40,12 @@ DATA: D A T A;
 
 SEMI: ';' ;
 
-WORD: [a-zA-Z0-9] [a-zA-Z0-9]*
-    | '"' [^"]* '"'
-    | '\'' [^']* '\'' ;
+STRING: CHAR CHAR*
+    | '"' .*? '"'
+    | '\'' .*? '\'' ;
+fragment CHAR: [a-zA-Z0-9_+-:] | '?';
 
+COMMENT : '[' .*? ']' -> skip ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
 
 // Fragments used for case-insensitive keyword lexing
