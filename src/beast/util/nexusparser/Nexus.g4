@@ -9,6 +9,7 @@ block:
     | assumptions_block
     | characters_block
     | data_block
+    | trees_block
     | other_block
     ;
 
@@ -16,34 +17,44 @@ taxa_block: BEGIN TAXA ';' command* END ';' ;
 
 assumptions_block: BEGIN ASSUMPTIONS ';' command* END ';' ;
 
-characters_block: BEGIN CHARACTERS ';' command* END ';' ;
+characters_block: BEGIN CHARACTERS ';' (dimensions_command | command)* END ';' ;
+data_block: BEGIN DATA ';' (dimensions_command | command)* END ';' ;
+dimensions_command: DIMENSIONS NEWTAXA? (NTAX '=' ntax=INT)? NCHAR '=' nchar=INT ';' ;
 
-data_block: BEGIN DATA ';' command* END ';' ;
+trees_block: BEGIN TREES ';' command* END ';' ;
 
-other_block: BEGIN STRING ';' command* END ';' ;
+other_block: BEGIN WORDSTRING ';' command* END ';' ;
 
-command: word ((word '=' word ','?) | word)* ';' ;
+command: command_name=word ((key=word '=' val=word) | word)* ';' ;
 
-word : keyword | STRING ;
-keyword: BEGIN | END | TAXA | ASSUMPTIONS | CHARACTERS | DATA ;
-
+word : INT | WORDSTRING ;
 
 // Lexer
 
+SEMI: ';' ;
+EQ: '=' ;
+
 NEXUS_START: '#' N E X U S ;
 BEGIN: B E G I N;
-END: E N D ;
-TAXA: T A X A;
-ASSUMPTIONS: A S S U M P T I O N S;
-CHARACTERS: C H A R A C T E R S ;
+END: E N D;
 DATA: D A T A;
+TAXA: T A X A;
+CHARACTERS: C H A R A C T E R S;
+ASSUMPTIONS: A S S U M P T I O N S;
+TREES: T R E E S;
 
-SEMI: ';' ;
+DIMENSIONS: D I M E N S I O N S;
+NTAX: N T A X;
+NCHAR: N C H A R;
+NEWTAXA: N E W T A X A;
 
-STRING: CHAR CHAR*
+INT : DIGIT DIGIT*;
+fragment DIGIT: [0-9];
+
+WORDSTRING: WCHAR WCHAR*
     | '"' .*? '"'
     | '\'' .*? '\'' ;
-fragment CHAR: [a-zA-Z0-9_+-:] | '?';
+fragment WCHAR: [a-zA-Z0-9_\-?];
 
 COMMENT : '[' .*? ']' -> skip ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
@@ -76,3 +87,6 @@ fragment W:('w'|'W');
 fragment X:('x'|'X');
 fragment Y:('y'|'Y');
 fragment Z:('z'|'Z');
+
+
+
