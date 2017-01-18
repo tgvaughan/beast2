@@ -2,91 +2,97 @@ grammar Nexus;
 
 // Parser
 
-nexus: NEXUS_START block* ;
+nexus: '#nexus' block* ;
 
-block:
-    taxa_block
-    | assumptions_block
-    | characters_block
-    | data_block
-    | trees_block
-    | other_block
+block: 'begin' block_declaration 'end' ';' ;
+
+block_declaration:
+    block_taxa
+    | block_characters
+    | block_unaligned
+    | block_distances
+    | block_data
+    | block_codons
+    | block_sets
+    | block_assumptions
+    | block_trees
+    | block_notes
+    | block_unknown
     ;
 
-taxa_block: BEGIN TAXA ';' command* END ';' ;
 
-assumptions_block: BEGIN ASSUMPTIONS ';' command* END ';' ;
+/*----------------------------------------------------------------------*/
+/*               TAXA                                                   */
+/*----------------------------------------------------------------------*/
+    
+block_taxa:
+    'taxa' ';'
+    'dimensions' 'ntax' '=' INT ';'
+    taxlabels
+    ;
 
-characters_block: BEGIN CHARACTERS ';' (dimensions_command | command)* END ';' ;
-data_block: BEGIN DATA ';' (dimensions_command | command)* END ';' ;
-dimensions_command: DIMENSIONS NEWTAXA? (NTAX '=' ntax=INT)? NCHAR '=' nchar=INT ';' ;
+ /*----------------------------------------------------------------------*/
+/*               CHARACTERS                                             */
+/*----------------------------------------------------------------------*/
 
-trees_block: BEGIN TREES ';' command* END ';' ;
+ block_data:
+    'data' ';'
+       'dimensions' newtaxa 'nchar' '=' INT ';'
+       format_characters
+       options_data
+       eliminate
+       taxlabels_optional
+       charstate
+       'matrix' matrix_data ';'
+       ;
 
-other_block: BEGIN WORDSTRING ';' command* END ';' ;
+format_characters:
+    'format' format_characters_item format_characters_item* ';'
+    ;
 
-command: command_name=word ((key=word '=' val=word) | word)* ';' ;
+format_characters_item:
+  | 'gap' '=' character_symbol
+  | 'matchchar' '=' matchchar_symbol
+  | 'transpose'
+  | 'items' '=' item_value
+  | 'datatype' '=' IDENTIFIER
+  | 'respectcase'
+  | 'interleave'
+  | 'statesformat' '=' statesformat_option
+  | missing
+  | symbols
+  | equate
+  | labels
+  | tokens
+  ;
 
-word : INT | WORDSTRING ;
+
+/* ----------------------------------------------------------------------------
+   Individual rules used by various commands or blocks
+   ---------------------------------------------------------------------------- */
+
+newtaxa: 'newtaxa' ntax
+    | ntax ;
+
+ntax: 'ntax' '=' INT ;
+
+taxlabels:
+    'taxlabels' IDENTIFIER IDENTIFIER* ';' ;
 
 // Lexer
 
 SEMI: ';' ;
 EQ: '=' ;
 
-NEXUS_START: '#' N E X U S ;
-BEGIN: B E G I N;
-END: E N D;
-DATA: D A T A;
-TAXA: T A X A;
-CHARACTERS: C H A R A C T E R S;
-ASSUMPTIONS: A S S U M P T I O N S;
-TREES: T R E E S;
-
-DIMENSIONS: D I M E N S I O N S;
-NTAX: N T A X;
-NCHAR: N C H A R;
-NEWTAXA: N E W T A X A;
-
 INT : DIGIT DIGIT*;
-fragment DIGIT: [0-9];
 
-WORDSTRING: WCHAR WCHAR*
-    | '"' .*? '"'
-    | '\'' .*? '\'' ;
-fragment WCHAR: [a-zA-Z0-9_\-?];
+IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
+fragment WCHAR: [a-zA-Z0-9_\\-?];
+
+fragment DIGIT: [0-9];
+fragment LETTER: [a-zA-Z];
+
+STRING: '"' .*? '"' | '\'' .*? '\'' ;
 
 COMMENT : '[' .*? ']' -> skip ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
-
-// Fragments used for case-insensitive keyword lexing
-
-fragment A:('a'|'A');
-fragment B:('b'|'B');
-fragment C:('c'|'C');
-fragment D:('d'|'D');
-fragment E:('e'|'E');
-fragment F:('f'|'F');
-fragment G:('g'|'G');
-fragment H:('h'|'H');
-fragment I:('i'|'I');
-fragment J:('j'|'J');
-fragment K:('k'|'K');
-fragment L:('l'|'L');
-fragment M:('m'|'M');
-fragment N:('n'|'N');
-fragment O:('o'|'O');
-fragment P:('p'|'P');
-fragment Q:('q'|'Q');
-fragment R:('r'|'R');
-fragment S:('s'|'S');
-fragment T:('t'|'T');
-fragment U:('u'|'U');
-fragment V:('v'|'V');
-fragment W:('w'|'W');
-fragment X:('x'|'X');
-fragment Y:('y'|'Y');
-fragment Z:('z'|'Z');
-
-
-
