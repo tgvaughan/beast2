@@ -209,18 +209,7 @@ public class GuessPatternDialog extends JDialog {
         JButton btnHelp = new JButton("?");
         btnHelp.setToolTipText("Show format of trait file");
         btnHelp.addActionListener(e -> {
-	        JOptionPane pane = new JOptionPane() {
-        	    @Override
-        	    public int getMaxCharactersPerLineCount() {
-        	        return 70;
-        	    }
-	        };
-	        pane.setMessage(TRAIT_FILE_HELP_MESSAGE);
-	        pane.setMessageType(JOptionPane.INFORMATION_MESSAGE);
-
-	        JDialog dialog = pane.createDialog(this, "Message");
-	        dialog.setModal(true);
-	        dialog.setVisible(true);
+            WrappedOptionPane.showMessageDialog(this, TRAIT_FILE_HELP_MESSAGE);
         });
         GridBagConstraints gbc_btnHelp = new GridBagConstraints();
         gbc_btnHelp.insets = new Insets(0, 0, 5, 5);
