@@ -5,11 +5,25 @@ grammar Nexus;
 nexus: '#' NEXUS block* ;
 
 block:
-    BEGIN name=IDENTIFIER ';'
-    command*
-    END ';'
-    ;
+    BEGIN
+    (data_block
+    | calibration_block
+    | assumptions_block
+    | taxa_block
+    | trees_block
+    | unknown_block)
+    END ';' ;
 
+data_block: (DATA|CHARACTERS) ';' command*;
+calibration_block: CALIBRATION  ';'command*;
+assumptions_block: (ASSUMPTIONS|SETS|MRBAYES) ';' command*;
+taxa_block: TAXA ';' command*;
+trees_block: TREES ';' command*;
+
+unknown_block:
+    name=IDENTIFIER ';'
+    command*
+    ;
 
 command:
     name=IDENTIFIER args=(ANYTHING|IDENTIFIER)* ';'
@@ -50,6 +64,15 @@ fragment LETTER: [a-zA-Z];
 NEXUS: N E X U S ;
 BEGIN: B E G I N ;
 END: E N D ;
+
+DATA: D A T A;
+CHARACTERS: C H A R A C T E R S;
+CALIBRATION: C A L I B R A T I O N;
+ASSUMPTIONS: A S S U M P T I O N S;
+SETS: S E T S;
+MRBAYES: M R B A Y E S;
+TAXA: T A X A;
+TREES: T R E E S;
 
 IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
 

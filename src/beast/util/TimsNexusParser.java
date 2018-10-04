@@ -10,6 +10,20 @@ import beast.evolution.datatype.UserDataType;
 import beast.evolution.tree.TraitSet;
 import beast.evolution.tree.Tree;
 import beast.math.distributions.*;
+import beast.util.nexusparser.NexusBaseListener;
+import beast.util.nexusparser.NexusBaseVisitor;
+import beast.util.nexusparser.NexusLexer;
+import beast.util.nexusparser.NexusListener;
+import beast.util.nexusparser.NexusParser;
+import beast.util.nexusparser.NexusVisitor;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.ErrorNode;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.io.*;
 import java.util.*;
@@ -20,7 +34,7 @@ import java.util.regex.Pattern;
 /**
  * parses nexus file and grabs alignment and calibration from the file *
  */
-public class NexusParser {
+public class TimsNexusParser {
     /**
      * keep track of nexus file line number, to report when the file does not parse *
      */
@@ -78,59 +92,82 @@ public class NexusParser {
      * java.text.ParseException seems more appropriate, but requires keeping track of the position in the file, which is non-trivial 
      */
     public void parseFile(final String id, final Reader reader) throws IOException {
-        lineNr = 0;
-        final BufferedReader fin;
-        if (reader instanceof BufferedReader) {
-            fin = (BufferedReader) reader;
-        } else {
-            fin = new BufferedReader(reader);
-        }
-        try {
-            while (fin.ready()) {
-                final String str = nextLine(fin);
-                if (str == null) {
-                    processSets();
-                    return;
-                }
-                final String lower = str.toLowerCase();
-                if (lower.matches("^\\s*begin\\s+data;\\s*$") || lower.matches("^\\s*begin\\s+characters;\\s*$")) {
-                    m_alignment = parseDataBlock(fin);
-                    m_alignment.setID(id);
-                } else if (lower.matches("^\\s*begin\\s+calibration;\\s*$")) {
-                    traitSet = parseCalibrationsBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+assumptions;\\s*$") ||
-                        lower.matches("^\\s*begin\\s+sets;\\s*$") ||
-                        lower.matches("^\\s*begin\\s+mrbayes;\\s*$")) {
-                    parseAssumptionsBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+taxa;\\s*$")) {
-                    parseTaxaBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+trees;\\s*$")) {
-                    parseTreesBlock(fin);
-                }
+
+        CharStream charStream = CharStreams.fromReader(reader);
+
+        // Use lexer to produce token stream
+
+        NexusLexer lexer = new NexusLexer(charStream);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+
+        // Parse token stream to produce parse tree
+
+        beast.util.nexusparser.NexusParser parser = new beast.util.nexusparser.NexusParser(tokens);
+        ParseTree parseTree = parser.nexus();
+
+        NexusVisitor extractor = new NexusBaseVisitor<Void>() {
+            @Override
+            public Void visitData_block(NexusParser.Data_blockContext ctx) {
+                visitChildren(ctx);
+
+                return null;
             }
-            processSets();
+        };
 
-        } catch (TreeParser.TreeParsingException e) {
-        	e.printStackTrace();
-            int errorLine = lineNr + 1;
 
-            if (e.getLineNum() != null)
-                errorLine += e.getLineNum()-1;
-
-            String errorMsg = "Encountered error interpreting the Newick string found around line " +
-                    errorLine + " of the input file.";
-
-            if (e.getCharacterNum() != null)
-                errorMsg += "\nThe parser reports that the error occurred at character " + (e.getCharacterNum()+1)
-                        + " of the Newick string on this line.";
-
-            errorMsg += "\nThe parser gives the following clue:\n" + e.getMessage();
-
-            throw new IOException(errorMsg);
-
-        } catch (Exception e) {
-            throw new IOException("Around line " + (lineNr+1) + "\n" + e.getMessage());
-        }
+//        lineNr = 0;
+//        final BufferedReader fin;
+//        if (reader instanceof BufferedReader) {
+//            fin = (BufferedReader) reader;
+//        } else {
+//            fin = new BufferedReader(reader);
+//        }
+//        try {
+//            while (fin.ready()) {
+//                final String str = nextLine(fin);
+//                if (str == null) {
+//                    processSets();
+//                    return;
+//                }
+//                final String lower = str.toLowerCase();
+//                if (lower.matches("^\\s*begin\\s+data;\\s*$") || lower.matches("^\\s*begin\\s+characters;\\s*$")) {
+//                    m_alignment = parseDataBlock(fin);
+//                    m_alignment.setID(id);
+//                } else if (lower.matches("^\\s*begin\\s+calibration;\\s*$")) {
+//                    traitSet = parseCalibrationsBlock(fin);
+//                } else if (lower.matches("^\\s*begin\\s+assumptions;\\s*$") ||
+//                        lower.matches("^\\s*begin\\s+sets;\\s*$") ||
+//                        lower.matches("^\\s*begin\\s+mrbayes;\\s*$")) {
+//                    parseAssumptionsBlock(fin);
+//                } else if (lower.matches("^\\s*begin\\s+taxa;\\s*$")) {
+//                    parseTaxaBlock(fin);
+//                } else if (lower.matches("^\\s*begin\\s+trees;\\s*$")) {
+//                    parseTreesBlock(fin);
+//                }
+//            }
+//            processSets();
+//
+//        } catch (TreeParser.TreeParsingException e) {
+//        	e.printStackTrace();
+//            int errorLine = lineNr + 1;
+//
+//            if (e.getLineNum() != null)
+//                errorLine += e.getLineNum()-1;
+//
+//            String errorMsg = "Encountered error interpreting the Newick string found around line " +
+//                    errorLine + " of the input file.";
+//
+//            if (e.getCharacterNum() != null)
+//                errorMsg += "\nThe parser reports that the error occurred at character " + (e.getCharacterNum()+1)
+//                        + " of the Newick string on this line.";
+//
+//            errorMsg += "\nThe parser gives the following clue:\n" + e.getMessage();
+//
+//            throw new IOException(errorMsg);
+//
+//        } catch (Exception e) {
+//            throw new IOException("Around line " + (lineNr+1) + "\n" + e.getMessage());
+//        }
     } // parseFile
 
     /**
@@ -1310,7 +1347,7 @@ public class NexusParser {
 
     public static void main(final String[] args) {
         try {
-            final NexusParser parser = new NexusParser();
+            final TimsNexusParser parser = new TimsNexusParser();
             parser.parseFile(new File(args[0]));
             if (parser.taxa != null) {
                 System.out.println(parser.taxa.size() + " taxa");
