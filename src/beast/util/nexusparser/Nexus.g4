@@ -2,97 +2,58 @@ grammar Nexus;
 
 // Parser
 
-nexus: '#nexus' block* ;
+nexus: '#' NEXUS block* ;
 
-block: 'begin' block_declaration 'end' ';' ;
-
-block_declaration:
-    block_taxa
-    | block_characters
-    | block_unaligned
-    | block_distances
-    | block_data
-    | block_codons
-    | block_sets
-    | block_assumptions
-    | block_trees
-    | block_notes
-    | block_unknown
+block:
+    BEGIN name=IDENTIFIER ';'
+    command*
+    END ';'
     ;
 
 
-/*----------------------------------------------------------------------*/
-/*               TAXA                                                   */
-/*----------------------------------------------------------------------*/
-    
-block_taxa:
-    'taxa' ';'
-    'dimensions' 'ntax' '=' INT ';'
-    taxlabels
+command:
+    name=IDENTIFIER args=(ANYTHING|IDENTIFIER)* ';'
     ;
-
- /*----------------------------------------------------------------------*/
-/*               CHARACTERS                                             */
-/*----------------------------------------------------------------------*/
-
- block_data:
-    'data' ';'
-       'dimensions' newtaxa 'nchar' '=' INT ';'
-       format_characters
-       options_data
-       eliminate
-       taxlabels_optional
-       charstate
-       'matrix' matrix_data ';'
-       ;
-
-format_characters:
-    'format' format_characters_item format_characters_item* ';'
-    ;
-
-format_characters_item:
-  | 'gap' '=' character_symbol
-  | 'matchchar' '=' matchchar_symbol
-  | 'transpose'
-  | 'items' '=' item_value
-  | 'datatype' '=' IDENTIFIER
-  | 'respectcase'
-  | 'interleave'
-  | 'statesformat' '=' statesformat_option
-  | missing
-  | symbols
-  | equate
-  | labels
-  | tokens
-  ;
-
-
-/* ----------------------------------------------------------------------------
-   Individual rules used by various commands or blocks
-   ---------------------------------------------------------------------------- */
-
-newtaxa: 'newtaxa' ntax
-    | ntax ;
-
-ntax: 'ntax' '=' INT ;
-
-taxlabels:
-    'taxlabels' IDENTIFIER IDENTIFIER* ';' ;
 
 // Lexer
 
-SEMI: ';' ;
-EQ: '=' ;
+fragment A : [aA]; // match either an 'a' or 'A'
+fragment B : [bB];
+fragment C : [cC];
+fragment D : [dD];
+fragment E : [eE];
+fragment F : [fF];
+fragment G : [gG];
+fragment H : [hH];
+fragment I : [iI];
+fragment J : [jJ];
+fragment K : [kK];
+fragment L : [lL];
+fragment M : [mM];
+fragment N : [nN];
+fragment O : [oO];
+fragment P : [pP];
+fragment Q : [qQ];
+fragment R : [rR];
+fragment S : [sS];
+fragment T : [tT];
+fragment U : [uU];
+fragment V : [vV];
+fragment W : [wW];
+fragment X : [xX];
+fragment Y : [yY];
+fragment Z : [zZ];
 
-INT : DIGIT DIGIT*;
-
-IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
-fragment WCHAR: [a-zA-Z0-9_\\-?];
-
-fragment DIGIT: [0-9];
+fragment DIGIT: [0-9] ;
 fragment LETTER: [a-zA-Z];
 
-STRING: '"' .*? '"' | '\'' .*? '\'' ;
+NEXUS: N E X U S ;
+BEGIN: B E G I N ;
+END: E N D ;
 
-COMMENT : '[' .*? ']' -> skip ;
+IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
+
+COMMENT : '[' (~[&%\\/] .*?)? ']' -> skip ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
+
+ANYTHING: ~[;]+?;

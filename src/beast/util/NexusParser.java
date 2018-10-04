@@ -10,6 +10,7 @@ import beast.evolution.datatype.UserDataType;
 import beast.evolution.tree.TraitSet;
 import beast.evolution.tree.Tree;
 import beast.math.distributions.*;
+import beast.util.nexusparser.NexusLexer;
 
 import java.io.*;
 import java.util.*;
