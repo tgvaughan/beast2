@@ -59,81 +59,6 @@ public class NexusParser {
     }
 
     /**
-     * Try to parse BEAST 2 objects from the given file
-     *
-     * @param file the file to parse.
-     */
-    public void parseFile(final File file) throws IOException {
-        final String fileName = file.getName().replaceAll(".*[\\/\\\\]", "").replaceAll("\\..*", "");
-
-        parseFile(fileName, new FileReader(file));
-    }
-
-    /**
-     * try to reconstruct Beast II objects from the given reader
-     *
-     * @param id     a name to give to the parsed results
-     * @param reader a reader to parse from
-     * TODO: RRB: throws IOException now instead of just Exception. 
-     * java.text.ParseException seems more appropriate, but requires keeping track of the position in the file, which is non-trivial 
-     */
-    public void parseFile(final String id, final Reader reader) throws IOException {
-        lineNr = 0;
-        final BufferedReader fin;
-        if (reader instanceof BufferedReader) {
-            fin = (BufferedReader) reader;
-        } else {
-            fin = new BufferedReader(reader);
-        }
-        try {
-            while (fin.ready()) {
-                final String str = nextLine(fin);
-                if (str == null) {
-                    processSets();
-                    return;
-                }
-                final String lower = str.toLowerCase();
-                if (lower.matches("^\\s*begin\\s+data;\\s*$") || lower.matches("^\\s*begin\\s+characters;\\s*$")) {
-                    m_alignment = parseDataBlock(fin);
-                    m_alignment.setID(id);
-                } else if (lower.matches("^\\s*begin\\s+calibration;\\s*$")) {
-                    traitSet = parseCalibrationsBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+assumptions;\\s*$") ||
-                        lower.matches("^\\s*begin\\s+sets;\\s*$") ||
-                        lower.matches("^\\s*begin\\s+mrbayes;\\s*$")) {
-                    parseAssumptionsBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+taxa;\\s*$")) {
-                    parseTaxaBlock(fin);
-                } else if (lower.matches("^\\s*begin\\s+trees;\\s*$")) {
-                    parseTreesBlock(fin);
-                }
-            }
-            processSets();
-
-        } catch (TreeParser.TreeParsingException e) {
-        	e.printStackTrace();
-            int errorLine = lineNr + 1;
-
-            if (e.getLineNum() != null)
-                errorLine += e.getLineNum()-1;
-
-            String errorMsg = "Encountered error interpreting the Newick string found around line " +
-                    errorLine + " of the input file.";
-
-            if (e.getCharacterNum() != null)
-                errorMsg += "\nThe parser reports that the error occurred at character " + (e.getCharacterNum()+1)
-                        + " of the Newick string on this line.";
-
-            errorMsg += "\nThe parser gives the following clue:\n" + e.getMessage();
-
-            throw new IOException(errorMsg);
-
-        } catch (Exception e) {
-            throw new IOException("Around line " + (lineNr+1) + "\n" + e.getMessage());
-        }
-    } // parseFile
-
-    /**
      * Class representing a single command in a nexus file.
      *
      * Command may be terminated by either a ";" or an EOF. All whitespace
@@ -167,10 +92,25 @@ public class NexusParser {
         public String toString() {
             return "Command: " + command + ", Args: " + arguments;
         }
+
+        public boolean isBlockStart() {
+            return command.equals("begin");
+        }
+
+        public String getBlockType() {
+            if (!isBlockStart())
+                return null;
+
+            return arguments;
+        }
+
+        public boolean isBlockEnd() {
+            return command.equals("end") && arguments.isEmpty();
+        }
     }
 
     /**
-     * Get next nexus command, if available.
+     * Get next nexus command, if available, stripping out comments along the way.
      *
      * @param fin nexus file reader
      * @return nexus command, or null if none available.
@@ -179,14 +119,34 @@ public class NexusParser {
     NexusCommand readNextCommand(BufferedReader fin) throws IOException {
         StringBuilder commandBuilder = new StringBuilder();
 
+        boolean inComment = false;
+
         while(true) {
             int nextVal = fin.read();
-            if (nextVal<0)
+            if (nextVal < 0)
                 break;
 
-            char nextChar = (char)nextVal;
-            if (nextChar == ';')
+            char nextChar = (char) nextVal;
+            if (!inComment && nextChar == ';')
                 break;
+
+            if (!inComment && nextChar == '[') {
+                char nextNextChar = (char) fin.read();
+                if (nextNextChar == '&') {
+                    commandBuilder.append(nextChar).append(nextNextChar);
+                } else if (nextNextChar != ']')
+                    inComment = true;
+
+                continue;
+            }
+
+            if (inComment && nextChar == ']') {
+                inComment = false;
+                continue;
+            }
+
+            if (inComment)
+                continue;
 
             commandBuilder.append(nextChar);
         }
@@ -196,6 +156,102 @@ public class NexusParser {
         else
             return new NexusCommand(commandBuilder.toString());
     }
+
+
+    /**
+     * Try to parse BEAST 2 objects from the given file
+     *
+     * @param file the file to parse.
+     */
+    public void parseFile(final File file) throws IOException {
+        final String fileName = file.getName().replaceAll(".*[\\/\\\\]", "").replaceAll("\\..*", "");
+
+        parseFile(fileName, new FileReader(file));
+    }
+
+    /**
+     * try to reconstruct Beast II objects from the given reader
+     *
+     * @param id     a name to give to the parsed results
+     * @param reader a reader to parse from
+     * TODO: RRB: throws IOException now instead of just Exception. 
+     * java.text.ParseException seems more appropriate, but requires keeping track of the position in the file, which is non-trivial 
+     */
+    public void parseFile(final String id, final Reader reader) throws IOException {
+        lineNr = 0;
+        final BufferedReader fin;
+        if (reader instanceof BufferedReader) {
+            fin = (BufferedReader) reader;
+        } else {
+            fin = new BufferedReader(reader);
+        }
+        try {
+            String header = fin.readLine().trim().toLowerCase();
+            if (!header.equals("#nexus"))
+                throw new IOException("Input file does not seem to be a NEXUS file.");
+
+            while (fin.ready()) {
+                NexusCommand command = readNextCommand(fin);
+                if (command == null) {
+                    processSets();
+                    return;
+                }
+
+                if (command.isBlockStart()) {
+                   switch(command.getBlockType()) {
+                       case "data":
+                       case "characters":
+                           m_alignment = parseDataBlock(fin);
+                           m_alignment.setID(id);
+                           break;
+
+                       case "calibration":
+                           traitSet = parseCalibrationsBlock(fin);
+                           break;
+
+                       case "assumptions":
+                       case "sets":
+                       case "mrbayes":
+                           parseAssumptionsBlock(fin);
+                           break;
+
+                       case "taxa":
+                           parseTaxaBlock(fin);
+                           break;
+
+                       case "trees":
+                           parseTreesBlock(fin);
+                           break;
+
+                       default:
+                   }
+                }
+            }
+            processSets();
+
+        } catch (TreeParser.TreeParsingException e) {
+        	e.printStackTrace();
+            int errorLine = lineNr + 1;
+
+            if (e.getLineNum() != null)
+                errorLine += e.getLineNum()-1;
+
+            String errorMsg = "Encountered error interpreting the Newick string found around line " +
+                    errorLine + " of the input file.";
+
+            if (e.getCharacterNum() != null)
+                errorMsg += "\nThe parser reports that the error occurred at character " + (e.getCharacterNum()+1)
+                        + " of the Newick string on this line.";
+
+            errorMsg += "\nThe parser gives the following clue:\n" + e.getMessage();
+
+            throw new IOException(errorMsg);
+
+        } catch (Exception e) {
+            throw new IOException("Around line " + (lineNr+1) + "\n" + e.getMessage());
+        }
+    } // parseFile
+
 
     protected void parseTreesBlock(final BufferedReader fin) throws IOException {
         trees = new ArrayList<>();
@@ -232,13 +288,6 @@ public class NexusParser {
                         treeParser = new TreeParser(taxa, treeString, 1, false);
                     }
                 }
-//                catch (NullPointerException e) {
-//                    treeParser = new TreeParser(m_taxa, str, 1);
-//                }
-
-
-//                if (translationMap != null) treeParser.translateLeafIds(translationMap);
-
 
                 // this needs to go after translation map or listeners have an incomplete tree!
                 for (final NexusParserListener listener : listeners) {
@@ -247,10 +296,6 @@ public class NexusParser {
 
                 // this must come after listener or trees.size() gives the wrong index to treeParsed
                 trees.add(treeParser);
-
-//				Node tree = treeParser.getRoot();
-//				tree.sort();
-//				tree.labelInternalNodes(nrOfLabels);
             }
             nextCommand = readNextCommand(fin);
         }
