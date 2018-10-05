@@ -14,20 +14,34 @@ block:
     | unknown_block)
     END ';' ;
 
+trees_block: TREES ';'
+    translate_command?  tree_command*;
+
+translate_command : TRANSLATE translate_args ';' ;
+translate_args : any+ ;
+tree_command : TREE tree_name '=' tree_type? tree_string ';' ;
+tree_name : any ;
+tree_type : '[&' . ']' ;
+tree_string : any+ ;
+
+taxa_block: TAXA ';' command*;
+
 data_block: (DATA|CHARACTERS) ';' command*;
 calibration_block: CALIBRATION  ';'command*;
 assumptions_block: (ASSUMPTIONS|SETS|MRBAYES) ';' command*;
-taxa_block: TAXA ';' command*;
-trees_block: TREES ';' command*;
 
 unknown_block:
-    name=IDENTIFIER ';'
+    name=. ';'
     command*
     ;
 
 command:
-    name=IDENTIFIER args=(ANYTHING|IDENTIFIER)* ';'
+    command_name command_args ';'
     ;
+command_name: ~(SEMI | END | BEGIN);
+command_args: any*;
+
+any: ~SEMI;
 
 // Lexer
 
@@ -61,6 +75,9 @@ fragment Z : [zZ];
 fragment DIGIT: [0-9] ;
 fragment LETTER: [a-zA-Z];
 
+SEMI: ';' ;
+EQ: '=' ;
+
 NEXUS: N E X U S ;
 BEGIN: B E G I N ;
 END: E N D ;
@@ -73,10 +90,12 @@ SETS: S E T S;
 MRBAYES: M R B A Y E S;
 TAXA: T A X A;
 TREES: T R E E S;
+TREE: T R E E;
+TRANSLATE: T R A N S L A T E;
 
 IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
 
 COMMENT : '[' (~[&%\\/] .*?)? ']' -> skip ;
 WHITESPACE : [ \t\r\n]+ -> skip ;
 
-ANYTHING: ~[;]+?;
+ANYTHING: ~[;];
