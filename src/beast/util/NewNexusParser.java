@@ -120,6 +120,14 @@ public class NewNexusParser {
         return translationMap;
     }
 
+    private boolean taxonListContains(String taxon) {
+        for (Taxon t : taxonList) {
+            if (t.getID().equals(taxon)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     class Visitor extends NexusBaseVisitor<Void> {
 
@@ -160,12 +168,45 @@ public class NewNexusParser {
             }
             return null;
         }
+
+        @Override
+        public Void visitTaxa_block(NexusParser.Taxa_blockContext ctx) {
+            taxa = new ArrayList<>();
+
+            int expectedTaxonCount = -1;
+
+            if (ctx.dimensions_command() != null) {
+                expectedTaxonCount = Integer.valueOf(ctx.dimensions_command().taxcount().getText());
+            }
+
+            if (ctx.taxlabels_command() != null) {
+                for (NexusParser.Taxon_nameContext nameCtx : ctx.taxlabels_command().taxon_name()) {
+                    String taxonName = nameCtx.getText();
+                    if (taxonName.startsWith("'") || taxonName.startsWith("\""))
+                        taxonName = taxonName.substring(1,taxonName.length()-1);
+
+                    if (!taxa.contains(taxonName))
+                        taxa.add(taxonName);
+
+                    if (!taxonListContains(taxonName))
+                        taxonList.add(new Taxon(taxonName));
+                }
+            }
+
+            if (expectedTaxonCount>=0 && expectedTaxonCount != taxa.size())
+                throw new ParseCancellationException("Number of taxa ("
+                        + taxa.size()
+                        + ") is not equal to number specified in 'dimension' command ("
+                        + expectedTaxonCount + ") specified in 'taxa' block.");
+
+            return null;
+        }
     }
 
     public static void main(String[] args) throws IOException {
 
         NewNexusParser parser = new NewNexusParser();
-        parser.parseFile(new File("examples/nexus/humanChimpSNP.nex"));
+        parser.parseFile(new File("examples/nexus/angiosperms.nex"));
 
         System.out.println("Done.");
     }

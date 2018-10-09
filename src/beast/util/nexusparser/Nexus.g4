@@ -6,13 +6,12 @@ nexus: '#' NEXUS block* ;
 
 block:
     BEGIN
-    (data_block
-    | calibration_block
-    | assumptions_block
-    | taxa_block
+    ( taxa_block
     | trees_block
     | unknown_block)
     END ';' ;
+
+// Trees blocks
 
 trees_block: TREES ';'
     translate_command?  tree_command*;
@@ -22,9 +21,18 @@ translate_args : any+ ;
 tree_command : TREE tree_name '=' tree_type? tree_string ';' ;
 tree_name : any ;
 tree_type : '[&' . ']' ;
-tree_string : any+ ;
+tree_string : any+? ;
 
-taxa_block: TAXA ';' command*;
+// Taxa blocks
+
+taxa_block: TAXA ';' dimensions_command? taxlabels_command?;
+
+dimensions_command : DIMENSIONS NTAX '=' taxcount ';' ;
+taxcount: NUMBER ;
+taxlabels_command : TAXLABELS taxon_name+? ';' ;
+taxon_name : any;
+
+// Unhandled blocks
 
 data_block: (DATA|CHARACTERS) ';' command*;
 calibration_block: CALIBRATION  ';'command*;
@@ -77,6 +85,8 @@ fragment LETTER: [a-zA-Z];
 
 SEMI: ';' ;
 EQ: '=' ;
+QUOTE: '"' ;
+DOUBLEQUOTE: '\'' ;
 
 NEXUS: N E X U S ;
 BEGIN: B E G I N ;
@@ -92,10 +102,18 @@ TAXA: T A X A;
 TREES: T R E E S;
 TREE: T R E E;
 TRANSLATE: T R A N S L A T E;
+DIMENSIONS: D I M E N S I O N S;
+NTAX: N T A X;
+TAXLABELS: T A X L A B E L S;
 
-IDENTIFIER: (LETTER | '_')+ (LETTER | DIGIT | '_' | '.')* ;
 
+IDENTIFIER: (LETTER | '_') (LETTER | DIGIT | '_' | '.')* ;
+fragment STRING1: '"' ('\\"' | .)*? '"';
+fragment STRING2: '\'' ('\\\'' | .)*? '\'';
+STRING : STRING1 | STRING2 ;
+
+NUMBER: DIGIT+;
 COMMENT : '[' (~[&%\\/] .*?)? ']' -> skip ;
-WHITESPACE : [ \t\r\n]+ -> skip ;
+WHITESPACE : (' ' | '\t' | '\n' | '\r')+ -> skip ;
 
 ANYTHING: ~[;];
