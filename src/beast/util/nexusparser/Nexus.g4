@@ -8,6 +8,7 @@ block:
     BEGIN
     ( taxa_block
     | trees_block
+    | calibration_block
     | unknown_block)
     END ';' ;
 
@@ -19,7 +20,7 @@ trees_block: TREES ';'
 translate_command : TRANSLATE translate_args ';' ;
 translate_args : any+ ;
 tree_command : TREE tree_name '=' tree_type? tree_string ';' ;
-tree_name : any ;
+tree_name : word ;
 tree_type : '[&' . ']' ;
 tree_string : any+? ;
 
@@ -30,12 +31,24 @@ taxa_block: TAXA ';' dimensions_command? taxlabels_command?;
 dimensions_command : DIMENSIONS NTAX '=' taxcount ';' ;
 taxcount: NUMBER ;
 taxlabels_command : TAXLABELS taxon_name+? ';' ;
-taxon_name : any;
+taxon_name : STRING | (notpunctuation | '-')+;
+
+// Calibration blocks
+calibration_block: CALIBRATION  ';'
+    options_command?
+    tipcalibration_command? ;
+
+options_command: OPTIONS (~SCALE '=' any)*?
+                         SCALE '=' time_scale=any
+                         (~SCALE '=' any)*? ';' ;
+
+tipcalibration_command : TIPCALIBRATION tipcalibration ';';
+tipcalibration : key=any '=' date=~COLON+? ':' taxa=tipcalibration_taxa (COMMA tipcalibration)? ;
+tipcalibration_taxa : ~(COMMA | SEMI)+;
 
 // Unhandled blocks
 
 data_block: (DATA|CHARACTERS) ';' command*;
-calibration_block: CALIBRATION  ';'command*;
 assumptions_block: (ASSUMPTIONS|SETS|MRBAYES) ';' command*;
 
 unknown_block:
@@ -44,12 +57,13 @@ unknown_block:
     ;
 
 command:
-    command_name command_args ';'
-    ;
+    command_name command_args ';' ;
 command_name: ~(SEMI | END | BEGIN);
 command_args: any*;
 
-any: ~SEMI;
+word : STRING | notpunctuation+ ;
+notpunctuation : ~(SEMI | EQ | QUOTE | DOUBLEQUOTE | COMMA | COLON );
+any: ~(SEMI);
 
 // Lexer
 
@@ -87,6 +101,8 @@ SEMI: ';' ;
 EQ: '=' ;
 QUOTE: '"' ;
 DOUBLEQUOTE: '\'' ;
+COMMA: ',' ;
+COLON: ':' ;
 
 NEXUS: N E X U S ;
 BEGIN: B E G I N ;
@@ -105,7 +121,9 @@ TRANSLATE: T R A N S L A T E;
 DIMENSIONS: D I M E N S I O N S;
 NTAX: N T A X;
 TAXLABELS: T A X L A B E L S;
-
+OPTIONS: O P T I O N S;
+SCALE: S C A L E;
+TIPCALIBRATION : T I P C A L I B R A T I O N;
 
 IDENTIFIER: (LETTER | '_') (LETTER | DIGIT | '_' | '.')* ;
 fragment STRING1: '"' ('\\"' | .)*? '"';
